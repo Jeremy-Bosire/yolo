@@ -1,0 +1,82 @@
+---
+- name: Deploy E-commerce Application
+  block:
+    - name: Create application user and group
+      group:
+        name: "{{ app_group }}"
+        state: present
+      
+    - name: Create application user
+      user:
+        name: "{{ app_user }}"
+        group: "{{ app_group }}"
+        home: "{{ project_root }}"
+        shell: /bin/bash
+        create_home: yes
+      tags:
+        - application
+        - users
+
+    - name: Clone or update application repository
+      git:
+        repo: "{{ git_repo }}"
+        dest: "{{ project_root }}/source"
+        version: "{{ git_branch }}"
+        force: yes
+      become_user: "{{ app_user }}"
+      tags:
+        - application
+        - deployment
+
+    - name: Set ownership of application directory
+      file:
+        path: "{{ project_root }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        recurse: yes
+      tags:
+        - application
+        - permissions
+
+    - name: Create application environment file
+      template:
+        src: app.env.j2
+        dest: "{{ project_root }}/.env"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0600'
+      tags:
+        - application
+        - configuration
+
+    - name: Copy and customize docker-compose for production
+      template:
+        src: docker-compose.prod.yml.j2
+        dest: "{{ project_root }}/docker-compose.yml"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0644'
+      notify:
+        - Restart application services
+      tags:
+        - application
+        - docker
+
+    - name: Build and start application containers
+      docker_compose:
+        project_src: "{{ project_root }}"
+        state: present
+        pull: yes
+        build: yes
+      become_user: "{{ app_user }}"
+      tags:
+        - application
+        - containers
+
+  rescue:
+    - name: Application deployment failed
+      debug:
+        msg: "Application deployment failed. Check logs with: docker-compose logs"
+      tags:
+        - application
+        - error
