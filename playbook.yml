@@ -1,9 +1,128 @@
 ---
-- name: Ansible playbook to dockerize and run yolo e-commerce app using ansible
+- name: E-commerce Application Configuration Management - Enhanced Deployment
   hosts: all
-  become: true
-  roles: 
-    - frontend-deployment
-    - setup-mongodb   
-    - backend-deployment
+  become: yes
+  gather_facts: yes
+  
+  vars:
+    # Override default variables if needed
+    deploy_env: "development"
+    project_name: "yolo_ecommerce"
     
+  vars_prompt:
+    - name: "confirm_deployment"
+      prompt: "Deploy YOLO e-commerce application? (yes/no)"
+      default: "yes"
+      private: no
+    
+    - name: "deploy_environment"
+      prompt: "Environment (dev/staging/prod)"
+      default: "dev"
+      private: no
+
+  pre_tasks:
+    - name: Display deployment information
+      debug:
+        msg: 
+          - "🚀 Starting YOLO E-commerce deployment"
+          - "Target host: {{ inventory_hostname }}"
+          - "Environment: {{ deploy_environment }}"
+          - "User: {{ ansible_user }}"
+          - "Timestamp: {{ ansible_date_time.iso8601 }}"
+      tags: always
+
+    - name: Verify deployment confirmation
+      fail:
+        msg: "Deployment cancelled by user"
+      when: confirm_deployment != "yes"
+      tags: always
+
+    - name: Update system packages for security
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+        upgrade: safe
+      tags: 
+        - setup
+        - system
+        - security
+
+    - name: Install basic development tools
+      apt:
+        name:
+          - curl
+          - wget
+          - git
+          - htop
+          - net-tools
+        state: present
+      tags:
+        - setup
+        - tools
+
+  roles:
+    - name: Deploy frontend application
+      role: frontend-deployment
+      tags: 
+        - frontend
+        - web
+        - deployment
+      vars:
+        frontend_env: "{{ deploy_environment }}"
+
+    - name: Setup MongoDB database
+      role: setup-mongodb
+      tags:
+        - database
+        - mongodb
+        - data
+        - persistence
+
+    - name: Deploy backend API
+      role: backend-deployment
+      tags:
+        - backend
+        - api
+        - deployment
+      vars:
+        backend_env: "{{ deploy_environment }}"
+
+  post_tasks:
+    - name: Wait for MongoDB to be ready
+      wait_for:
+        port: 27017
+        host: localhost
+        delay: 5
+        timeout: 60
+      tags:
+        - verification
+        - database
+
+    - name: Wait for backend API to be ready
+      uri:
+        url: "http://localhost:5000/health"
+        method: GET
+        status_code: 200
+      retries: 10
+      delay: 10
+      register: backend_health
+      ignore_errors: yes
+      tags:
+        - verification
+        - backend
+
+    - name: Wait for frontend to be ready
+      uri:
+        url: "http://localhost:3000"
+        method: GET
+        status_code: 200
+      retries: 15
+      delay: 10
+      register: frontend_health
+      tags:
+        - verification
+        - frontend
+
+    - name: Verify all containers are running
+      shell: docker ps --filter "status=running" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+      regist
