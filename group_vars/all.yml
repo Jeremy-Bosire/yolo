@@ -1,0 +1,41 @@
+---
+# Project identification
+project_name: "ecommerce_devops"
+app_env: "development"
+
+# Application configuration (adjust based on your app analysis)
+app_backend_port: 5000
+app_frontend_port: 3000
+app_user: "appuser"
+app_group: "appgroup"
+
+# Paths
+project_root: "/opt/{{ project_name }}"
+app_backend_path: "{{ project_root }}/backend"
+app_frontend_path: "{{ project_root }}/client"
+
+# Database configuration (adjust based on your app - MongoDB/PostgreSQL)
+# Check your existing docker-compose.yaml to see which DB is used
+database_type: "mongodb"  # or "postgresql" 
+database_name: "ecommerce_db"
+database_user: "ecommerce_user"
+database_password: "secure_dev_password"
+mongodb_port: 27017
+postgres_port: 5432
+
+# Docker configuration
+docker_version: "5:20.10.*"
+docker_compose_version: "1.29.2"
+
+# Git repository (your forked repo)
+git_repo: "https://github.com/{{ ansible_user_id }}/your-forked-repo.git"
+git_branch: "main"
+
+# Container names for consistency
+containers:
+  backend: "{{ project_name }}_backend"
+  frontend: "{{ project_name }}_frontend" 
+  database: "{{ project_name }}_db"
+  
+# Network configuration
+docker_network: "{{ project_name }}_network"
