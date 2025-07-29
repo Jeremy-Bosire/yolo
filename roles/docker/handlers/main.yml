@@ -1,0 +1,10 @@
+---
+- name: Start Docker service
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: Reset ssh connection
+  meta: reset_connection

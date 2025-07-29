@@ -1,0 +1,87 @@
+---
+- name: Docker Installation and Configuration
+  block:
+    - name: Update apt package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      tags: 
+        - docker
+        - setup
+
+    - name: Install Docker dependencies
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - python3-pip
+        state: present
+      tags: 
+        - docker
+        - dependencies
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+      tags: 
+        - docker
+        - setup
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+      tags: 
+        - docker
+        - setup
+
+    - name: Install Docker CE
+      apt:
+        name: "docker-ce={{ docker_version }}"
+        state: present
+        update_cache: yes
+      notify: 
+        - Start Docker service
+      tags: 
+        - docker
+        - install
+
+    - name: Install Docker Compose via pip
+      pip:
+        name: docker-compose
+        version: "{{ docker_compose_version }}"
+        state: present
+      tags: 
+        - docker
+        - compose
+
+    - name: Add user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+      notify:
+        - Reset ssh connection
+      tags: 
+        - docker
+        - permissions
+
+    - name: Create Docker network for application
+      docker_network:
+        name: "{{ docker_network }}"
+        state: present
+      tags:
+        - docker
+        - network
+
+  rescue:
+    - name: Docker installation failed
+      fail:
+        msg: "Docker installation failed. Check internet connection and repository availability."
+      tags: 
+        - docker
+        - error
